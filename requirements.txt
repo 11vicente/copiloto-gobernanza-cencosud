@@ -1,0 +1,52 @@
+# =============================================================================
+# DEPENDENCIAS - Co-piloto de Gobernanza Corporativa
+# =============================================================================
+# Versiones fijadas para garantizar reproducibilidad de la evaluacion.
+# Instalar con: pip install -r requirements.txt
+# Recomendado: usar un entorno virtual (python -m venv venv) para aislar.
+# =============================================================================
+
+# --- Nucleo LangChain ---
+# Orquestador principal del pipeline RAG. langchain-community trae los
+# loaders (PyPDFLoader); langchain-openai expone embeddings y chat models;
+# langchain-mongodb es el conector oficial para Atlas Vector Search.
+langchain==0.3.13
+langchain-community==0.3.13
+langchain-core==0.3.28
+langchain-openai==0.2.14
+langchain-mongodb==0.3.0
+langchain-text-splitters==0.3.4
+# pypdf es la dependencia de PyPDFLoader. Maneja extraccion pagina-por-pagina
+# preservando metadatos (source, page) que usaremos para citar fuentes.
+pypdf==5.1.0
+
+# --- Cliente MongoDB ---
+# Driver oficial. La version >=4.6 es requerida por langchain-mongodb para
+# soportar las operaciones $vectorSearch del aggregation pipeline.
+pymongo==4.10.1
+
+# --- Variables de entorno ---
+# Carga el archivo .env como variables de entorno. Buena practica de seguridad
+# para no hardcodear credenciales en el codigo.
+python-dotenv==1.0.1
+
+# =============================================================================
+# DEPENDENCIAS PARA FASE 2 (motor_rag.py + API)
+# =============================================================================
+# Se instalan ahora para evitar conflictos de version mas adelante.
+
+# --- Backend API ---
+# FastAPI + Uvicorn para servir el endpoint del agente con soporte nativo de
+# streaming (Server-Sent Events) requerido por la entrega token-a-token.
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+sse-starlette==2.1.3
+
+# --- Observabilidad ---
+# LangSmith captura cada llamada al LLM, retrieval, tokens y latencia.
+
+langsmith==0.2.3
+
+# --- CORS y modelos ---
+# Pydantic ya viene con FastAPI; lo declaramos explicito para fijar version.
+pydantic==2.10.4

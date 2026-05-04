@@ -1,0 +1,81 @@
+# =============================================================================
+# .gitignore - Co-piloto de Gobernanza Corporativa
+# =============================================================================
+# Define que archivos NO deben subirse al repositorio publico.
+# Es critico aqui porque .env contiene credenciales reales de
+# MongoDB Atlas, GitHub Models y LangSmith.
+# =============================================================================
+
+# --- Credenciales y secretos (NUNCA subir) ---
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# --- Borradores y archivos privados ---
+INFORME_BORRADOR.md
+
+# --- Entornos virtuales ---
+venv/
+env/
+.venv/
+ENV/
+
+# --- Cache y bytecode de Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# --- Distribucion / build ---
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+
+# --- Test y cobertura ---
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# --- Logs y outputs locales ---
+*.log
+logs/
+*.out
+
+# --- Editores e IDEs ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+
+# --- Sistema operativo ---
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+.directory
+
+# --- Jupyter (por si se usa para analisis exploratorio) ---
+.ipynb_checkpoints/
+
+# --- Trazabilidad local de LangChain (los traces reales viven en LangSmith cloud) ---
+.langchain/
+langchain.db
