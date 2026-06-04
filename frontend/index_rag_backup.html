@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Co-piloto de Gobernanza Corporativa - Cencosud S.A.</title>
+
+    <!--
+        Markdown renderer (marked.js): el LLM responde en markdown
+        (negritas, bullets, citas), asi que necesitamos parsearlo a HTML
+        para que el director vea el formato correcto, no asteriscos crudos.
+        Cargamos desde CDN para no requerir npm/build.
+    -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <style>
+        /* ==========================================================
+           ESTILOS - Diseno corporativo sobrio para perfil ejecutivo
+           Paleta inspirada en herramientas de directorio (Linear,
+           Notion, Bloomberg Terminal). Sin animaciones excesivas.
+           ========================================================== */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                         Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f8fafc;
+            color: #0f172a;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            font-size: 15px;
+            line-height: 1.55;
+        }
+
+        header {
+            background: #0f172a;
+            color: white;
+            padding: 0.85rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            z-index: 10;
+        }
+
+        header .brand {
+            display: flex;
+            align-items: baseline;
+            gap: 0.75rem;
+        }
+        header h1 { font-size: 1rem; font-weight: 600; letter-spacing: -0.01em; }
+        header .subtitle { font-size: 0.8rem; color: #94a3b8; font-weight: 400; }
+
+        #reset {
+            background: transparent;
+            color: #cbd5e1;
+            border: 1px solid #334155;
+            padding: 0.4rem 0.85rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-family: inherit;
+            transition: background 0.15s;
+        }
+        #reset:hover { background: #1e293b; }
+
+        main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+        }
+        .conversacion {
+            max-width: 860px;
+            margin: 0 auto;
+        }
+
+        .mensaje {
+            margin-bottom: 1.5rem;
+            padding: 1rem 1.25rem;
+            border-radius: 8px;
+            line-height: 1.6;
+            word-wrap: break-word;
+        }
+        .mensaje.usuario {
+            background: #1e40af;
+            color: white;
+            margin-left: 20%;
+            border-bottom-right-radius: 2px;
+        }
+        .mensaje.copiloto {
+            background: white;
+            border: 1px solid #e2e8f0;
+            margin-right: 10%;
+            border-bottom-left-radius: 2px;
+        }
+
+        /* Formato del markdown dentro de las respuestas del agente */
+        .mensaje.copiloto h1,
+        .mensaje.copiloto h2,
+        .mensaje.copiloto h3 {
+            margin: 0.85rem 0 0.5rem;
+            color: #0f172a;
+        }
+        .mensaje.copiloto h2 { font-size: 1.05rem; }
+        .mensaje.copiloto h3 { font-size: 0.95rem; }
+        .mensaje.copiloto p { margin: 0.5rem 0; }
+        .mensaje.copiloto strong { color: #0f172a; }
+        .mensaje.copiloto em { color: #475569; }
+        .mensaje.copiloto ul,
+        .mensaje.copiloto ol {
+            padding-left: 1.5rem;
+            margin: 0.5rem 0;
+        }
+        .mensaje.copiloto li { margin: 0.3rem 0; }
+        .mensaje.copiloto code {
+            background: #f1f5f9;
+            padding: 0.1em 0.35em;
+            border-radius: 3px;
+            font-size: 0.88em;
+            font-family: "SF Mono", Monaco, Consolas, monospace;
+        }
+        .mensaje.copiloto hr {
+            border: none;
+            border-top: 1px solid #e2e8f0;
+            margin: 1rem 0;
+        }
+        .mensaje.copiloto blockquote {
+            border-left: 3px solid #cbd5e1;
+            padding-left: 0.85rem;
+            color: #475569;
+            margin: 0.5rem 0;
+        }
+
+        /* Cursor parpadeante mientras el LLM esta generando */
+        .cursor {
+            display: inline-block;
+            width: 7px;
+            height: 0.95em;
+            background: #1e40af;
+            vertical-align: text-bottom;
+            margin-left: 2px;
+            animation: parpadeo 1s steps(2, end) infinite;
+        }
+        @keyframes parpadeo {
+            50% { opacity: 0; }
+        }
+
+        .mensaje.error {
+            background: #fef2f2;
+            border-color: #fecaca;
+            color: #991b1b;
+            margin-right: 10%;
+        }
+
+        /* Pantalla de bienvenida con sugerencias */
+        .bienvenida {
+            text-align: center;
+            color: #64748b;
+            padding: 3rem 1rem;
+        }
+        .bienvenida h2 {
+            color: #0f172a;
+            font-size: 1.4rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        .bienvenida p { max-width: 500px; margin: 0 auto 1.5rem; }
+
+        .sugerencias {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 0.75rem;
+            max-width: 700px;
+            margin: 2rem auto 0;
+        }
+        .sugerencia {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 0.85rem 1rem;
+            cursor: pointer;
+            text-align: left;
+            font-size: 0.85rem;
+            color: #334155;
+            font-family: inherit;
+            transition: border-color 0.15s, transform 0.1s;
+        }
+        .sugerencia:hover {
+            border-color: #1e40af;
+            transform: translateY(-1px);
+        }
+
+        footer {
+            background: white;
+            border-top: 1px solid #e2e8f0;
+            padding: 1rem 2rem;
+        }
+        .composer {
+            max-width: 860px;
+            margin: 0 auto;
+            display: flex;
+            gap: 0.75rem;
+            align-items: flex-end;
+        }
+        #input {
+            flex: 1;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 0.75rem 0.85rem;
+            font-family: inherit;
+            font-size: 0.95rem;
+            resize: none;
+            min-height: 50px;
+            max-height: 150px;
+            line-height: 1.5;
+            color: #0f172a;
+        }
+        #input:focus {
+            outline: none;
+            border-color: #1e40af;
+            box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+        }
+        #send {
+            background: #1e40af;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-family: inherit;
+            font-size: 0.9rem;
+            min-height: 50px;
+            transition: background 0.15s;
+        }
+        #send:hover:not(:disabled) { background: #1e3a8a; }
+        #send:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .estado {
+            text-align: center;
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin-top: 0.5rem;
+        }
+        .estado.online::before {
+            content: "●";
+            color: #22c55e;
+            margin-right: 0.3rem;
+        }
+        .estado.offline::before {
+            content: "●";
+            color: #ef4444;
+            margin-right: 0.3rem;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Cabecera con identidad del producto y boton de reset -->
+    <header>
+        <div class="brand">
+            <h1>Co-piloto de Gobernanza Corporativa</h1>
+            <span class="subtitle">Cencosud S.A.</span>
+        </div>
+        <button id="reset" title="Limpia la memoria conversacional del agente">
+            Reiniciar conversación
+        </button>
+    </header>
+
+    <!-- Area principal de conversacion -->
+    <main>
+        <div class="conversacion" id="conversacion"></div>
+    </main>
+
+    <!-- Composer (input + enviar) -->
+    <footer>
+        <div class="composer">
+            <textarea
+                id="input"
+                placeholder="Escribe tu consulta como director... (Enter para enviar, Shift+Enter para salto de línea)"
+                rows="2"></textarea>
+            <button id="send">Enviar</button>
+        </div>
+        <div class="estado" id="estado">Verificando conexión con el backend...</div>
+    </footer>
+
+    <script>
+    // ==========================================================
+    // CONFIGURACION
+    // ==========================================================
+    // URL base del backend FastAPI. Si el backend corre en otro puerto
+    // o host (ej: deploy a Render/Railway), basta con cambiar esta linea.
+    const API_URL = 'http://localhost:8000';
+
+    // Sugerencias de inicio: preguntas curadas que demuestran las
+    // capacidades del agente (cross-document, comparativo, ejecutivo).
+    // Buena UX para que el usuario no se quede mirando un input vacio.
+    const SUGERENCIAS = [
+        '¿Cuáles son los principales riesgos identificados en la Memoria 2024?',
+        'Compara los desafíos entre la Memoria 2023 y 2024. ¿Qué riesgos nuevos aparecen?',
+        '¿Qué dice el Código de Ética sobre conflictos de interés?',
+        'Resúmeme la estrategia de sostenibilidad declarada por la compañía.',
+    ];
+
+    // ==========================================================
+    // REFERENCIAS AL DOM
+    // ==========================================================
+    const $conv   = document.getElementById('conversacion');
+    const $input  = document.getElementById('input');
+    const $send   = document.getElementById('send');
+    const $reset  = document.getElementById('reset');
+    const $estado = document.getElementById('estado');
+
+    // Flag para evitar que el usuario envie multiples preguntas mientras
+    // una respuesta esta llegando en streaming.
+    let streaming = false;
+
+
+    // ==========================================================
+    // PANTALLA DE BIENVENIDA
+    // ==========================================================
+    // Se muestra al inicio y despues de un /reset. Las sugerencias son
+    // botones clickeables: al pulsarlos se autocompleta el input y envia.
+    function pintarBienvenida() {
+        $conv.innerHTML = `
+            <div class="bienvenida">
+                <h2>Bienvenido, Director</h2>
+                <p>
+                    Soy su Co-piloto de Gobernanza. Puedo analizar la Memoria Anual
+                    y el Código de Ética de Cencosud S.A. para entregarle respuestas
+                    ejecutivas, trazables y libres de alucinaciones.
+                </p>
+                <p style="font-size: 0.85rem;">Sugerencias para empezar:</p>
+                <div class="sugerencias">
+                    ${SUGERENCIAS.map(s =>
+                        `<button class="sugerencia">${s}</button>`
+                    ).join('')}
+                </div>
+            </div>
+        `;
+        // Bind de los botones de sugerencia
+        document.querySelectorAll('.sugerencia').forEach(btn => {
+            btn.addEventListener('click', () => {
+                $input.value = btn.textContent.trim();
+                enviarPregunta();
+            });
+        });
+    }
+
+
+    // ==========================================================
+    // RENDERIZADO DE MENSAJES
+    // ==========================================================
+    function agregarMensaje(rol, contenido = '') {
+        // Si hay pantalla de bienvenida, la ocultamos al primer mensaje
+        const bienv = $conv.querySelector('.bienvenida');
+        if (bienv) bienv.remove();
+
+        const div = document.createElement('div');
+        div.className = `mensaje ${rol}`;
+
+        if (rol === 'usuario') {
+            // Las preguntas del usuario se renderizan como texto plano
+            // para evitar inyeccion de HTML.
+            div.textContent = contenido;
+        } else {
+            // El mensaje del copiloto comienza con cursor parpadeante
+            // mientras espera el primer token.
+            div.innerHTML = '<span class="cursor"></span>';
+        }
+
+        $conv.appendChild(div);
+        scrollAlFinal();
+        return div;
+    }
+
+    function scrollAlFinal() {
+        const main = document.querySelector('main');
+        main.scrollTop = main.scrollHeight;
+    }
+
+
+    // ==========================================================
+    // PARSER DE EVENTOS SSE
+    // ==========================================================
+    // Los eventos SSE llegan como bloques separados por blank line,
+    // donde cada bloque tiene lineas "field: valor". El estandar SSE
+    // permite varios separadores de linea (\n, \r\n, \r), asi que
+    // normalizamos \r\n -> \n antes de parsear para evitar problemas
+    // en Windows o con servidores que usan CRLF.
+    function parsearEvento(bloque) {
+        const lineas = bloque.split('\n');
+        let evento = 'message';
+        let data   = '';
+        for (const l of lineas) {
+            // Quitamos \r residual al final si lo hubiera
+            const linea = l.replace(/\r$/, '');
+            if (linea.startsWith('event:')) {
+                evento = linea.slice(6).trim();
+            } else if (linea.startsWith('data:')) {
+                data = linea.slice(5).trim();
+            }
+        }
+        return { evento, data };
+    }
+
+
+    // ==========================================================
+    // CONSUMO DEL ENDPOINT /chat (STREAMING SSE)
+    // ==========================================================
+    async function preguntar(pregunta) {
+        streaming = true;
+        $send.disabled = true;
+        $input.disabled = true;
+
+        agregarMensaje('usuario', pregunta);
+        const $copilotoMsg = agregarMensaje('copiloto');
+
+        let respuesta = '';
+        let buffer    = '';
+        let terminado = false;
+
+        try {
+            // POST al backend con la pregunta. El servidor responde con
+            // Content-Type: text/event-stream y empieza a streamear tokens.
+            const resp = await fetch(`${API_URL}/chat`, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ pregunta })
+            });
+
+            if (!resp.ok) {
+                throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
+            }
+
+            // Leemos el body como ReadableStream (no esperamos a que
+            // termine: procesamos cada chunk apenas llega).
+            const reader  = resp.body.getReader();
+            const decoder = new TextDecoder();
+
+            while (!terminado) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                // Concatenamos al buffer. Normalizamos line endings:
+                // \r\n -> \n para que el split por blank line ('\n\n')
+                // funcione independiente del servidor (Windows/Linux/etc).
+                buffer += decoder.decode(value, { stream: true });
+                buffer = buffer.replace(/\r\n/g, '\n');
+
+                // Split por blank line. El ultimo trozo puede estar
+                // incompleto (chunk cortado a la mitad de un evento),
+                // lo dejamos en el buffer para la siguiente iteracion.
+                const bloques = buffer.split('\n\n');
+                buffer = bloques.pop();
+
+                console.debug('[SSE] chunk recibido, bloques:', bloques.length);
+
+                for (const bloque of bloques) {
+                    if (!bloque.trim()) continue;
+                    const { evento, data } = parsearEvento(bloque);
+                    console.debug('[SSE] evento:', evento, 'data:', data.slice(0, 60));
+
+                    if (evento === 'done') {
+                        terminado = true;
+                        break;
+                    }
+
+                    if (evento === 'error') {
+                        const msg = JSON.parse(data).error;
+                        throw new Error(msg);
+                    }
+
+                    if (evento === 'token') {
+                        try {
+                            const { token } = JSON.parse(data);
+                            respuesta += token;
+                            // Re-renderizamos el markdown completo en cada
+                            // token. marked.parse es rapido (~ms) para
+                            // textos de menos de 10KB, asi que el costo
+                            // es despreciable y obtenemos formato correcto
+                            // en tiempo real.
+                            $copilotoMsg.innerHTML =
+                                marked.parse(respuesta) +
+                                '<span class="cursor"></span>';
+                            scrollAlFinal();
+                        } catch (parseErr) {
+                            console.warn('[SSE] no parseo data:', data, parseErr);
+                        }
+                    }
+                }
+            }
+
+            // Render final sin cursor parpadeante
+            $copilotoMsg.innerHTML = marked.parse(respuesta);
+
+        } catch (e) {
+            $copilotoMsg.classList.add('error');
+            $copilotoMsg.innerHTML = `
+                <strong>Error de comunicación:</strong> ${e.message}
+                <br><small>
+                    Verifica que el backend esté corriendo en
+                    <code>${API_URL}</code>.
+                </small>`;
+        } finally {
+            streaming = false;
+            $send.disabled = false;
+            $input.disabled = false;
+            $input.focus();
+        }
+    }
+
+
+    // ==========================================================
+    // ACCIONES DE UI
+    // ==========================================================
+    function enviarPregunta() {
+        const q = $input.value.trim();
+        if (!q || streaming) return;
+        $input.value = '';
+        preguntar(q);
+    }
+
+    async function reiniciarConversacion() {
+        try {
+            await fetch(`${API_URL}/reset`, { method: 'POST' });
+            pintarBienvenida();
+        } catch (e) {
+            alert(`No se pudo reiniciar: ${e.message}`);
+        }
+    }
+
+
+    // ==========================================================
+    // VERIFICACION DE CONEXION CON EL BACKEND
+    // ==========================================================
+    // Llamamos a /health al cargar la pagina para que el usuario sepa
+    // de inmediato si el backend esta accesible. Asi evita confundir
+    // un backend caido con una respuesta lenta.
+    async function chequearBackend() {
+        try {
+            const r = await fetch(`${API_URL}/health`);
+            if (r.ok) {
+                $estado.className = 'estado online';
+                $estado.textContent = `Backend conectado en ${API_URL}`;
+            } else {
+                throw new Error('respuesta no OK');
+            }
+        } catch {
+            $estado.className = 'estado offline';
+            $estado.textContent =
+                `Backend no disponible en ${API_URL}. Inicia uvicorn primero.`;
+        }
+    }
+
+
+    // ==========================================================
+    // EVENT LISTENERS
+    // ==========================================================
+    $send.addEventListener('click', enviarPregunta);
+    $reset.addEventListener('click', reiniciarConversacion);
+
+    // Atajos de teclado: Enter envia, Shift+Enter inserta salto de linea
+    $input.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            enviarPregunta();
+        }
+    });
+
+
+    // ==========================================================
+    // ARRANQUE
+    // ==========================================================
+    pintarBienvenida();
+    chequearBackend();
+    $input.focus();
+    </script>
+</body>
+</html>
