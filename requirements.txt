@@ -50,3 +50,13 @@ langsmith==0.2.3
 # --- CORS y modelos ---
 # Pydantic ya viene con FastAPI; lo declaramos explicito para fijar version.
 pydantic==2.10.4
+
+# =============================================================================
+# DEPENDENCIAS PARA FASE 4 (agente.py con LangGraph)
+# =============================================================================
+# --- Agente ReAct ---
+# LangGraph construye el grafo de estados del ciclo ReAct del agente
+# (nodos razonar/buscar/reportar/responder y aristas condicionales).
+# Fijamos <0.3 por compatibilidad con langchain-core 0.3.x (la serie 1.x de
+# langgraph exige langchain-core 1.x). Version instalada: 0.2.76.
+langgraph>=0.2.0,<0.3

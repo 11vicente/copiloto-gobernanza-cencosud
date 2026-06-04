@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agente de Gobernanza (LangGraph) - Cencosud S.A.</title>
+
+    <!-- marked.js: el agente responde en markdown (reportes, bullets, citas). -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <style>
+        /* ==========================================================
+           Mismo lenguaje visual que index.html, con acento violeta
+           para distinguir el AGENTE del RAG conversacional.
+           ========================================================== */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                         Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f8fafc;
+            color: #0f172a;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            font-size: 15px;
+            line-height: 1.55;
+        }
+
+        header {
+            background: #1e1b4b;
+            color: white;
+            padding: 0.85rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            z-index: 10;
+        }
+        header .brand { display: flex; align-items: baseline; gap: 0.75rem; }
+        header h1 { font-size: 1rem; font-weight: 600; letter-spacing: -0.01em; }
+        header .subtitle { font-size: 0.8rem; color: #a5b4fc; font-weight: 400; }
+        header .badge {
+            font-size: 0.7rem; background: #6d28d9; color: white;
+            padding: 0.15rem 0.5rem; border-radius: 4px; margin-left: 0.5rem;
+        }
+
+        #reset {
+            background: transparent; color: #c7d2fe;
+            border: 1px solid #4338ca; padding: 0.4rem 0.85rem;
+            border-radius: 4px; cursor: pointer; font-size: 0.8rem;
+            font-family: inherit; transition: background 0.15s;
+        }
+        #reset:hover { background: #312e81; }
+
+        main { flex: 1; overflow-y: auto; padding: 2rem; }
+        .conversacion { max-width: 860px; margin: 0 auto; }
+
+        .mensaje {
+            margin-bottom: 1.5rem; padding: 1rem 1.25rem;
+            border-radius: 8px; line-height: 1.6; word-wrap: break-word;
+        }
+        .mensaje.usuario {
+            background: #4338ca; color: white; margin-left: 20%;
+            border-bottom-right-radius: 2px;
+        }
+        .mensaje.agente {
+            background: white; border: 1px solid #e2e8f0;
+            margin-right: 10%; border-bottom-left-radius: 2px;
+        }
+        .mensaje.agente h1, .mensaje.agente h2, .mensaje.agente h3 {
+            margin: 0.85rem 0 0.5rem; color: #0f172a;
+        }
+        .mensaje.agente h1 { font-size: 1.2rem; }
+        .mensaje.agente h2 { font-size: 1.05rem; }
+        .mensaje.agente h3 { font-size: 0.95rem; }
+        .mensaje.agente p { margin: 0.5rem 0; }
+        .mensaje.agente strong { color: #0f172a; }
+        .mensaje.agente em { color: #475569; }
+        .mensaje.agente ul, .mensaje.agente ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+        .mensaje.agente li { margin: 0.3rem 0; }
+        .mensaje.agente hr { border: none; border-top: 1px solid #e2e8f0; margin: 1rem 0; }
+
+        /* Indicador "pensando" (el agente no streamea: muestra puntos animados) */
+        .pensando { color: #6d28d9; font-style: italic; }
+        .pensando .dots span {
+            animation: blink 1.2s infinite both; font-weight: bold;
+        }
+        .pensando .dots span:nth-child(2) { animation-delay: 0.2s; }
+        .pensando .dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes blink { 0%,80%,100% { opacity: 0.2; } 40% { opacity: 1; } }
+
+        .mensaje.error {
+            background: #fef2f2; border-color: #fecaca;
+            color: #991b1b; margin-right: 10%;
+        }
+        .meta { font-size: 0.72rem; color: #94a3b8; margin-top: 0.5rem; }
+
+        .bienvenida { text-align: center; color: #64748b; padding: 3rem 1rem; }
+        .bienvenida h2 { color: #0f172a; font-size: 1.4rem; margin-bottom: 0.5rem; font-weight: 600; }
+        .bienvenida p { max-width: 540px; margin: 0 auto 1.5rem; }
+        .bienvenida .lp {
+            background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 6px;
+            padding: 0.75rem 1rem; max-width: 540px; margin: 0 auto 1.5rem;
+            font-size: 0.82rem; color: #5b21b6; text-align: left;
+        }
+
+        .sugerencias {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 0.75rem; max-width: 700px; margin: 2rem auto 0;
+        }
+        .sugerencia {
+            background: white; border: 1px solid #e2e8f0; border-radius: 6px;
+            padding: 0.85rem 1rem; cursor: pointer; text-align: left;
+            font-size: 0.85rem; color: #334155; font-family: inherit;
+            transition: border-color 0.15s, transform 0.1s;
+        }
+        .sugerencia:hover { border-color: #6d28d9; transform: translateY(-1px); }
+
+        footer { background: white; border-top: 1px solid #e2e8f0; padding: 1rem 2rem; }
+        .composer { max-width: 860px; margin: 0 auto; display: flex; gap: 0.75rem; align-items: flex-end; }
+        #input {
+            flex: 1; border: 1px solid #cbd5e1; border-radius: 6px;
+            padding: 0.75rem 0.85rem; font-family: inherit; font-size: 0.95rem;
+            resize: none; min-height: 50px; max-height: 150px; line-height: 1.5; color: #0f172a;
+        }
+        #input:focus {
+            outline: none; border-color: #6d28d9;
+            box-shadow: 0 0 0 3px rgba(109, 40, 217, 0.1);
+        }
+        #send {
+            background: #6d28d9; color: white; border: none; padding: 0.75rem 1.5rem;
+            border-radius: 6px; cursor: pointer; font-weight: 500; font-family: inherit;
+            font-size: 0.9rem; min-height: 50px; transition: background 0.15s;
+        }
+        #send:hover:not(:disabled) { background: #5b21b6; }
+        #send:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .estado { text-align: center; font-size: 0.75rem; color: #94a3b8; margin-top: 0.5rem; }
+        .estado.online::before { content: "●"; color: #22c55e; margin-right: 0.3rem; }
+        .estado.offline::before { content: "●"; color: #ef4444; margin-right: 0.3rem; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand">
+            <h1>Agente de Gobernanza Corporativa</h1>
+            <span class="subtitle">Cencosud S.A.</span>
+            <span class="badge">LangGraph · ReAct</span>
+        </div>
+        <button id="reset" title="Limpia la memoria de corto plazo de la sesión">
+            Reiniciar conversación
+        </button>
+    </header>
+
+    <main>
+        <div class="conversacion" id="conversacion"></div>
+    </main>
+
+    <footer>
+        <div class="composer">
+            <textarea
+                id="input"
+                placeholder="Pídele al agente que busque, compare o genere un reporte ejecutivo... (Enter para enviar)"
+                rows="2"></textarea>
+            <button id="send">Enviar</button>
+        </div>
+        <div class="estado" id="estado">Verificando conexión con el backend del agente...</div>
+    </footer>
+
+    <script>
+    // ==========================================================
+    // CONFIGURACION
+    // ==========================================================
+    // El backend del AGENTE (app_agente.py) corre en el puerto 8001,
+    // distinto del RAG conversacional (app.py en 8000).
+    const API_URL = 'http://localhost:8001';
+
+    // Sugerencias que muestran las capacidades del agente: busqueda,
+    // comparacion multi-paso y generacion de reportes ejecutivos.
+    const SUGERENCIAS = [
+        'Genera un reporte ejecutivo sobre los riesgos identificados en 2023 y 2024',
+        '¿Cuáles son los riesgos de la Memoria 2024?',
+        '¿Qué dice el Código de Ética sobre conflictos de interés?',
+        '¿Cuál es el color favorito del CEO?',
+    ];
+
+    const $conv   = document.getElementById('conversacion');
+    const $input  = document.getElementById('input');
+    const $send   = document.getElementById('send');
+    const $reset  = document.getElementById('reset');
+    const $estado = document.getElementById('estado');
+
+    let ocupado = false;
+
+    // ==========================================================
+    // BIENVENIDA
+    // ==========================================================
+    async function pintarBienvenida() {
+        // Consultamos /health para mostrar cuantos temas recuerda de
+        // sesiones anteriores (memoria de largo plazo), demostrando esa feature.
+        let infoLP = '';
+        try {
+            const r = await fetch(`${API_URL}/health`);
+            if (r.ok) {
+                const d = await r.json();
+                if (d.temas_memoria_largo_plazo > 0) {
+                    infoLP = `<div class="lp">🧠 <strong>Memoria de largo plazo:</strong>
+                        el agente recuerda ${d.temas_memoria_largo_plazo} tema(s)
+                        de sesiones anteriores (guardados en memoria_largo_plazo.json).</div>`;
+                }
+            }
+        } catch { /* health se reporta aparte en chequearBackend */ }
+
+        $conv.innerHTML = `
+            <div class="bienvenida">
+                <h2>Agente de Gobernanza</h2>
+                <p>
+                    A diferencia del chat RAG, este <strong>agente decide</strong> qué hacer:
+                    busca en los documentos, encadena varios pasos y puede
+                    <strong>generar reportes ejecutivos</strong> para el Directorio.
+                    El razonamiento paso a paso aparece en los logs del backend.
+                </p>
+                ${infoLP}
+                <p style="font-size: 0.85rem;">Prueba con:</p>
+                <div class="sugerencias">
+                    ${SUGERENCIAS.map(s => `<button class="sugerencia">${s}</button>`).join('')}
+                </div>
+            </div>
+        `;
+        document.querySelectorAll('.sugerencia').forEach(btn => {
+            btn.addEventListener('click', () => {
+                $input.value = btn.textContent.trim();
+                enviarPregunta();
+            });
+        });
+    }
+
+    // ==========================================================
+    // MENSAJES
+    // ==========================================================
+    function agregarMensaje(rol, contenido = '') {
+        const bienv = $conv.querySelector('.bienvenida');
+        if (bienv) bienv.remove();
+
+        const div = document.createElement('div');
+        div.className = `mensaje ${rol}`;
+        if (rol === 'usuario') {
+            div.textContent = contenido;
+        } else {
+            // Indicador "pensando" mientras el grafo ReAct trabaja.
+            div.innerHTML = `<span class="pensando">El agente está razonando
+                <span class="dots"><span>.</span><span>.</span><span>.</span></span></span>`;
+        }
+        $conv.appendChild(div);
+        scrollAlFinal();
+        return div;
+    }
+
+    function scrollAlFinal() {
+        const main = document.querySelector('main');
+        main.scrollTop = main.scrollHeight;
+    }
+
+    // ==========================================================
+    // CONSUMO DEL ENDPOINT /preguntar (request/response, NO streaming)
+    // ==========================================================
+    async function preguntar(pregunta) {
+        ocupado = true;
+        $send.disabled = true;
+        $input.disabled = true;
+
+        agregarMensaje('usuario', pregunta);
+        const $msg = agregarMensaje('agente');
+
+        try {
+            const resp = await fetch(`${API_URL}/preguntar`, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ pregunta })
+            });
+            if (!resp.ok) {
+                // Intentamos extraer el detalle de error de FastAPI.
+                let detalle = `HTTP ${resp.status} ${resp.statusText}`;
+                try { const j = await resp.json(); if (j.detail) detalle = j.detail; } catch {}
+                throw new Error(detalle);
+            }
+            const data = await resp.json();
+            // Renderizamos la respuesta (markdown) y una linea de meta con la duracion.
+            $msg.innerHTML = marked.parse(data.respuesta) +
+                `<div class="meta">Resuelto por el agente en ${data.duracion_seg}s</div>`;
+            scrollAlFinal();
+        } catch (e) {
+            $msg.classList.add('error');
+            $msg.innerHTML = `
+                <strong>Error de comunicación:</strong> ${e.message}
+                <br><small>Verifica que el backend del agente esté corriendo en
+                <code>${API_URL}</code> (uvicorn app_agente:app --port 8001).</small>`;
+        } finally {
+            ocupado = false;
+            $send.disabled = false;
+            $input.disabled = false;
+            $input.focus();
+        }
+    }
+
+    // ==========================================================
+    // ACCIONES
+    // ==========================================================
+    function enviarPregunta() {
+        const q = $input.value.trim();
+        if (!q || ocupado) return;
+        $input.value = '';
+        preguntar(q);
+    }
+
+    async function reiniciarConversacion() {
+        try {
+            await fetch(`${API_URL}/reset`, { method: 'POST' });
+            pintarBienvenida();
+        } catch (e) {
+            alert(`No se pudo reiniciar: ${e.message}`);
+        }
+    }
+
+    async function chequearBackend() {
+        try {
+            const r = await fetch(`${API_URL}/health`);
+            if (!r.ok) throw new Error('respuesta no OK');
+            $estado.className = 'estado online';
+            $estado.textContent = `Backend del agente conectado en ${API_URL}`;
+        } catch {
+            $estado.className = 'estado offline';
+            $estado.textContent =
+                `Agente no disponible en ${API_URL}. Inicia: uvicorn app_agente:app --port 8001`;
+        }
+    }
+
+    // ==========================================================
+    // EVENTOS Y ARRANQUE
+    // ==========================================================
+    $send.addEventListener('click', enviarPregunta);
+    $reset.addEventListener('click', reiniciarConversacion);
+    $input.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviarPregunta(); }
+    });
+
+    pintarBienvenida();
+    chequearBackend();
+    $input.focus();
+    </script>
+</body>
+</html>

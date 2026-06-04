@@ -4,8 +4,13 @@
 > Cencosud S.A. consultar la Memoria Anual y el Código de Ética en lenguaje
 > natural, con respuestas trazables, libres de alucinaciones y entregadas
 > en streaming token a token.
+>
+> **Fase 4 (nuevo):** además del chat RAG, el proyecto incorpora un **agente
+> funcional construido con LangGraph** (ciclo ReAct) capaz de razonar paso a
+> paso, decidir qué herramienta usar, encadenar varios pasos, calcular cifras
+> exactas y generar reportes ejecutivos, con memoria de corto y largo plazo.
 
-**Asignatura:** ISY0101 — Ingeniería de Soluciones con IA — Evaluación Parcial N°1
+**Asignatura:** ISY0101 — Ingeniería de Soluciones con IA
 **Autor:** Vicente Varela Rios
 **Docente:** Francisco Miqueles Varela
 
@@ -59,6 +64,40 @@ cita explícita a la fuente y página exacta.
 - **Few-Shot + Chain of Thought** para calibrar tono ejecutivo y forzar
   razonamiento explícito ("Análisis Previo" antes de "Respuesta Final").
 
+### Agente funcional con LangGraph (Fase 4)
+
+Sobre el RAG anterior se construyó un **agente ReAct** (`agente.py`) que
+**decide** qué hacer en lugar de seguir un flujo fijo:
+
+- **Grafo de decisión explícito (LangGraph)** con 4 nodos —
+  `razonar → buscar / calcular / reportar → responder` — y aristas
+  condicionales. Cada paso vuelve a `razonar`, lo que permite
+  encadenar múltiples pasos.
+- **Tres herramientas (`@tool`):**
+  1. `buscar_documentos` — reutiliza el `retriever` (k=6) y reformateo de
+     citas de `motor_rag.py`.
+  2. `generar_reporte` — sintetiza un reporte ejecutivo en markdown
+     (resumen, hallazgos, recomendaciones, fuentes).
+  3. `calcular_metricas` — **calculadora aritmética exacta y segura**
+     (variaciones %, ratios, crecimientos) con evaluador `ast` de lista
+     blanca (sin `eval`, a prueba de inyección de código).
+- **Memoria de corto plazo:** buffer de los últimos 4 mensajes (alta fidelidad).
+- **Memoria de largo plazo:** persistencia en `memoria_largo_plazo.json`
+  (resumen de la sesión anterior, temas consultados, reportes generados);
+  se inyecta en el prompt al iniciar.
+- **Planificación explícita:** en cada paso el agente escribe un `plan`
+  (qué busca, por qué esa herramienta) visible en los logs.
+- **Observabilidad:** logging de cada transición de nodo + integración
+  LangSmith con las mismas variables de entorno que el RAG.
+
+### Interfaz web unificada (RAG + Agente)
+
+`frontend/index.html` es ahora una **UI única con un selector** que permite
+alternar entre los dos motores en la misma ventana:
+
+- **Chat RAG** → backend `app.py` (`:8000`), streaming SSE.
+- **Agente** → backend `app_agente.py` (`:8001`), request/response.
+
 ---
 
 ## 2. Arquitectura
@@ -97,6 +136,30 @@ cita explícita a la fuente y página exacta.
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
+### Grafo del agente (Fase 4 — `agente.py`)
+
+```
+                          +-------------+
+             (entrada)--->|   razonar   |<--------------------------+
+                          +------+------+                           |
+                                 | router() inspecciona             |
+                                 | el ultimo mensaje                |
+       buscar    calcular        |  reportar      (sin tool_call)   |
+         +----------+------------+------------+----------+          |
+         |          |                         |          |          |
+         v          v                         v          v          |
+   +----------+ +-----------+           +-----------+ +-----------+  |
+   | buscar   | | calcular  |           | reportar  | | responder |  |
+   +----+-----+ +-----+-----+           +-----+-----+ +-----+-----+  |
+        |             |                       |             |        |
+        +----- vuelve a razonar (multi-paso) -+             v        |
+                                                          +----+     |
+                                                          | END|     |
+                                                          +----+     |
+                                                                     |
+   buscar / calcular / reportar SIEMPRE vuelven a razonar -----------+
+```
+
 ---
 
 ## 3. Estructura del repositorio
@@ -111,18 +174,22 @@ Proyecto_RAG/
 │   └── memoria_2025.pdf
 │
 ├── frontend/
-│   └── index.html              # UI mínima sin build (HTML + JS vanilla)
+│   ├── index.html              # UI unificada (selector Chat RAG / Agente)
+│   ├── index_rag_backup.html   # Respaldo de la UI solo-RAG original
+│   └── agente.html             # UI solo-agente (respaldo)
 │
 ├── ingesta.py                  # Fase 1: ETL de PDFs a MongoDB Atlas
 ├── motor_rag.py                # Fase 2: Cadena RAG conversacional (LCEL)
-├── app.py                      # Fase 3: API REST con FastAPI + SSE
+├── app.py                      # Fase 3: API REST del RAG (FastAPI + SSE)  :8000
+├── agente.py                   # Fase 4: Agente ReAct con LangGraph (3 tools)
+├── app_agente.py               # Fase 4: API REST del agente (FastAPI)      :8001
 ├── test_conexion.py            # Utilitario: diagnóstico de credenciales Mongo
 │
 ├── requirements.txt            # Dependencias Python con versiones fijas
 ├── .env.example                # Plantilla de credenciales (sin valores reales)
-├── .env                        # Credenciales reales — entregadas en privado por el autor
+├── .env                        # Credenciales reales — NO versionado (.gitignore)
 │
-├── INFORME_BORRADOR.md         # Borrador del informe técnico
+├── memoria_largo_plazo.json    # Estado del agente — NO versionado (lo genera en runtime)
 └── README.md                   # Este archivo
 ```
 
@@ -303,6 +370,44 @@ Luego abre en el navegador:
 > Algunos navegadores tratan `file://` como origen `null` y bloquean
 > `fetch()` por CORS. Servir el HTML por HTTP local lo evita.
 
+### 7.4. Agente con LangGraph (Fase 4)
+
+El agente se puede usar por **CLI** o por **web**.
+
+**Opción A — CLI interactivo:**
+```powershell
+.\venv\Scripts\Activate.ps1
+python agente.py
+```
+En los logs verás el ciclo ReAct paso a paso (`[NODO] razonar`,
+`[ROUTER] ...`, `[PLAN] ...`) y, entre sesiones, el agente recuerda los
+temas de la sesión anterior (memoria de largo plazo en
+`memoria_largo_plazo.json`).
+
+**Opción B — Web (UI unificada con selector RAG / Agente):**
+
+Requiere **tres terminales**: ambos backends + el servidor estático.
+
+```powershell
+# Terminal 1 — Backend RAG (:8000)
+.\venv\Scripts\Activate.ps1
+uvicorn app:app --port 8000
+
+# Terminal 2 — Backend Agente (:8001)
+.\venv\Scripts\Activate.ps1
+uvicorn app_agente:app --port 8001
+
+# Terminal 3 — Frontend estático
+cd frontend
+python -m http.server 3000
+```
+
+Abre **http://localhost:3000** y usa el selector **[ Chat RAG | Agente ]**
+de la cabecera para alternar entre los dos motores en la misma página.
+
+> El backend del agente expone: `GET /health`, `POST /preguntar`
+> (request/response, no streaming) y `POST /reset`.
+
 ---
 
 ## 8. Verificación y pruebas
@@ -389,6 +494,18 @@ Con backend (puerto 8000) y http.server (puerto 3000) corriendo:
 El caso 5 es crítico: si el sistema **inventa** una respuesta, las
 restricciones anti-alucinación no están funcionando.
 
+### 8.5. Casos de prueba del agente (Fase 4)
+
+Con el agente corriendo (CLI o `:8001`):
+
+| # | Pregunta | Flujo esperado / capacidad |
+|---|---|---|
+| 1 | ¿Cuáles son los riesgos de la Memoria 2024? | `razonar → buscar → razonar → responder` |
+| 2 | Genera un reporte ejecutivo sobre los riesgos de 2023 y 2024 | `razonar → buscar → … → reportar → responder` |
+| 3 | ¿Cuánto variaron las emisiones de GEI entre 2023 y 2024? Calcula el % exacto. | Encadena `buscar → calcular`; el cálculo lo hace `calcular_metricas`, no el LLM |
+| 4 | ¿Cuál es el color favorito del CEO? | Anti-alucinación: *"No tengo información suficiente…"* |
+| 5 | (2ª sesión, tras reiniciar) cualquier pregunta | El banner inicial menciona los temas de la sesión anterior (memoria de largo plazo) |
+
 ---
 
 ## 9. Solución de problemas frecuentes
@@ -431,6 +548,7 @@ restricciones anti-alucinación no están funcionando.
 | Servidor ASGI | Uvicorn | 0.32.1 |
 | Streaming | sse-starlette | 2.1.3 |
 | Orquestador IA | LangChain | 0.3.13 |
+| Agente / grafo de estados | LangGraph | 0.2.76 |
 | Embeddings y LLM | GitHub Models (vía OpenAI-compatible API) | text-embedding-3-small + gpt-4o-mini |
 | Base vectorial | MongoDB Atlas Vector Search | — |
 | Driver MongoDB | pymongo | 4.10.1 |

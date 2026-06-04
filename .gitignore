@@ -15,6 +15,17 @@
 
 # --- Borradores y archivos privados ---
 INFORME_BORRADOR.md
+IMPORTANTE LEER.txt
+
+# --- Comprimidos / respaldos locales ---
+*.rar
+*.zip
+*.7z
+
+# --- Estado en runtime del agente (Fase 4) ---
+# memoria_largo_plazo.json lo genera el agente al ejecutarse; es estado
+# local de cada sesion, no codigo fuente, asi que no se versiona.
+memoria_largo_plazo.json
 
 # --- Entornos virtuales ---
 venv/
