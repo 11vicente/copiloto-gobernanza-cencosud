@@ -50,6 +50,13 @@ from langchain_core.messages import HumanMessage, AIMessage
 # motor_rag.py: MongoDB, embeddings, retriever). Sucede UNA vez al arrancar.
 from agente import ejecutar_agente, cargar_memoria_largo_plazo
 
+# [EP3 — OBSERVABILIDAD, cambio ADITIVO] Este unico import activa el trazado
+# JSONL del agente (logs/agente_trazas.jsonl) sin tocar la logica de este
+# archivo ni de agente.py: cada consulta web queda registrada con origen="api"
+# (latencia por nodo, tokens, pasos ReAct, errores). Quitarlo desactiva la
+# observabilidad y todo vuelve a funcionar exactamente igual.
+import observabilidad.auto  # noqa: F401,E402
+
 
 # =============================================================================
 # 1. LOGGING

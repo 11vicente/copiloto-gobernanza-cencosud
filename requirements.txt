@@ -60,3 +60,26 @@ pydantic==2.10.4
 # Fijamos <0.3 por compatibilidad con langchain-core 0.3.x (la serie 1.x de
 # langgraph exige langchain-core 1.x). Version instalada: 0.2.76.
 langgraph>=0.2.0,<0.3
+
+# =============================================================================
+# DEPENDENCIAS PARA EP3 (observabilidad: analisis de trazas + dashboard)
+# =============================================================================
+# Versiones fijadas y verificadas con Python 3.11 y con los pines de
+# langchain 0.3.x ya declarados arriba (sin conflictos de dependencias).
+
+# --- Analisis de logs ---
+# pandas lee el JSONL de trazas y computa los agregados (p50/p95, tasas de
+# error, distribucion de pasos). Compatible con numpy 1.26.x ya instalado.
+pandas==2.2.3
+
+# --- Dashboard ---
+# Streamlit: dashboard 100% Python (mismo stack del proyecto), sin servidor
+# adicional (a diferencia de Grafana/Kibana) y listado como opcion valida en
+# el encargo EP3. Plotly: graficos interactivos (zoom, hover, filtros).
+streamlit==1.41.1
+plotly==5.24.1
+
+# --- Uso de recursos (IE2) ---
+# psutil mide RAM (RSS) y CPU del proceso del agente por consulta, para la
+# metrica de "uso de recursos" que exige la rubrica.
+psutil==6.1.1

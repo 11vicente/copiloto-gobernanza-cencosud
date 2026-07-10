@@ -9,6 +9,11 @@
 > funcional construido con LangGraph** (ciclo ReAct) capaz de razonar paso a
 > paso, decidir qué herramienta usar, encadenar varios pasos, calcular cifras
 > exactas y generar reportes ejecutivos, con memoria de corto y largo plazo.
+>
+> **EP3 — Observabilidad (nuevo):** el agente ahora cuenta con una capa de
+> **trazas estructuradas, evaluación de precisión/consistencia, análisis de
+> cuellos de botella y un dashboard Streamlit**. Instrucciones completas de
+> ejecución y validación en **[README_EP3.md](README_EP3.md)**.
 
 **Asignatura:** ISY0101 — Ingeniería de Soluciones con IA
 **Autor:** Vicente Varela Rios

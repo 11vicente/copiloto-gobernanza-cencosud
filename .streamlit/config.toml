@@ -1,0 +1,16 @@
+# =============================================================================
+# Configuracion de Streamlit — Dashboard de Observabilidad (EP3)
+# =============================================================================
+# Se fija el tema CLARO explicitamente para que el dashboard se vea IGUAL en
+# cualquier maquina (reproducibilidad de las capturas del informe): sin esto,
+# Streamlit hereda el modo oscuro/claro del sistema operativo del evaluador y
+# los colores de los graficos (calibrados para superficie clara) desentonarian.
+[theme]
+base = "light"
+primaryColor = "#2a78d6"           # azul (slot 1 de la paleta categorica)
+backgroundColor = "#fcfcfb"        # superficie de grafico validada
+secondaryBackgroundColor = "#f0efec"
+textColor = "#0b0b0b"
+
+[browser]
+gatherUsageStats = false

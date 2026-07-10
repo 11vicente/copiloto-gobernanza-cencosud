@@ -15,7 +15,11 @@
 
 # --- Borradores y archivos privados ---
 INFORME_BORRADOR.md
-IMPORTANTE LEER.txt
+
+# --- Informes de evaluacion: se entregan por AVA/correo, NO via repositorio ---
+INFORME_TECNICO_EP2.md
+INFORME_EP3.md
+*.docx
 
 # --- Comprimidos / respaldos locales ---
 *.rar
@@ -57,7 +61,13 @@ htmlcov/
 
 # --- Logs y outputs locales ---
 *.log
-logs/
+# EP3: se ignora el contenido de logs/ EXCEPTO las trazas del agente.
+# agente_trazas.jsonl se versiona a proposito: es la evidencia reproducible
+# de observabilidad que el evaluador necesita para validar el dashboard sin
+# gastar cuota de API. (Un directorio ignorado con "logs/" impediria la
+# excepcion; por eso se usa "logs/*" + negacion puntual.)
+logs/*
+!logs/agente_trazas.jsonl
 *.out
 
 # --- Editores e IDEs ---

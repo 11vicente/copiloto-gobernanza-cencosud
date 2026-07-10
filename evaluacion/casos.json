@@ -1,0 +1,156 @@
+{
+  "_descripcion": "Set de evaluacion EP3 (IE1: precision, consistencia y frecuencia de errores). Cada caso define variantes de fraseo (variabilidad de datos: parafraseo, años distintos, registro informal) y un criterio de acierto DETERMINISTA y auditable (palabras/regex/herramientas esperadas), evaluado por evaluar.py sin juez-LLM para no gastar cuota y para que el evaluador pueda reproducir el veredicto a mano.",
+  "_convenciones": {
+    "debe_contener_alguno": "acierta si la respuesta contiene AL MENOS UNO de estos textos (sin distinguir mayusculas/tildes)",
+    "regex_obligatorio": "acierta solo si la respuesta calza este regex (para cifras exactas)",
+    "debe_rehusar": "true => la respuesta DEBE incluir la frase anti-alucinacion 'No tengo informacion suficiente' (rehusa correcta)",
+    "herramientas_esperadas": "todas estas herramientas deben haberse invocado en la corrida",
+    "notas": "los textos se normalizan (minusculas y sin tildes) antes de comparar"
+  },
+  "casos": [
+    {
+      "id": "F1",
+      "categoria": "factual",
+      "descripcion": "Recuperacion factual simple sobre riesgos (Memoria 2024): el caso base del co-piloto.",
+      "variantes": [
+        "¿Cuáles son los principales riesgos identificados en la Memoria Anual 2024 de Cencosud?",
+        "Enumera los riesgos corporativos que reporta Cencosud en su Memoria Anual 2024.",
+        "¿Qué riesgos para el negocio menciona la Memoria 2024?"
+      ],
+      "criterio": {
+        "debe_contener_alguno": ["riesgo"],
+        "regex_obligatorio": null,
+        "debe_rehusar": false,
+        "herramientas_esperadas": ["buscar_documentos"]
+      }
+    },
+    {
+      "id": "F2",
+      "categoria": "factual",
+      "descripcion": "Recuperacion factual sobre OTRO documento (Codigo de Etica): variabilidad de fuente.",
+      "variantes": [
+        "¿Qué establece el Código de Ética de Cencosud sobre los conflictos de interés?",
+        "Según el Código de Ética, ¿cómo deben manejarse los conflictos de interés en la compañía?",
+        "¿Qué dice la normativa ética interna de Cencosud respecto a conflictos de interés?"
+      ],
+      "criterio": {
+        "debe_contener_alguno": ["conflicto"],
+        "regex_obligatorio": null,
+        "debe_rehusar": false,
+        "herramientas_esperadas": ["buscar_documentos"]
+      }
+    },
+    {
+      "id": "F3",
+      "categoria": "factual",
+      "descripcion": "Variabilidad de AÑO: misma tematica (sostenibilidad) pero sobre la Memoria 2023.",
+      "variantes": [
+        "¿Qué compromisos de sostenibilidad declara Cencosud en su Memoria Anual 2023?",
+        "Resume las iniciativas de sostenibilidad reportadas por Cencosud durante 2023.",
+        "En materia medioambiental y social, ¿qué destaca la Memoria 2023?"
+      ],
+      "criterio": {
+        "debe_contener_alguno": ["sostenib", "ambient", "social"],
+        "regex_obligatorio": null,
+        "debe_rehusar": false,
+        "herramientas_esperadas": ["buscar_documentos"]
+      }
+    },
+    {
+      "id": "C1",
+      "categoria": "calculo",
+      "descripcion": "Calculo autocontenido con resultado verificable: (78.5-65.2)/65.2*100 = 20.40. Mide que el agente DELEGUE la aritmetica a calcular_metricas y entregue la cifra exacta.",
+      "variantes": [
+        "Calcula con tu calculadora la variación porcentual desde 65.2 hasta 78.5.",
+        "Si un indicador pasó de 65.2 a 78.5, ¿qué variación porcentual tuvo? Calcúlalo exacto.",
+        "¿En qué porcentaje creció un valor que subió de 65.2 a 78.5? Usa cálculo exacto."
+      ],
+      "criterio": {
+        "debe_contener_alguno": null,
+        "regex_obligatorio": "20[.,]4",
+        "debe_rehusar": false,
+        "herramientas_esperadas": ["calcular_metricas"]
+      }
+    },
+    {
+      "id": "C2",
+      "categoria": "calculo",
+      "descripcion": "Encadenamiento RAG -> calculo (flujo multi-paso realista): recuperar cifras de dos años y calcular la variacion. El resultado numerico depende de los chunks recuperados, por eso el criterio valida el COMPORTAMIENTO (ambas herramientas usadas), no la cifra.",
+      "variantes": [
+        "Según las memorias, ¿cuánto variaron porcentualmente los ingresos de Cencosud entre 2023 y 2024? Calcula con cifras de los documentos.",
+        "Busca los ingresos de Cencosud de 2023 y 2024 en las memorias y calcula la variación porcentual exacta entre ambos años.",
+        "Con datos de las Memorias Anuales, calcula qué variación porcentual tuvieron los ingresos entre 2023 y 2024."
+      ],
+      "criterio": {
+        "debe_contener_alguno": null,
+        "regex_obligatorio": null,
+        "debe_rehusar": false,
+        "herramientas_esperadas": ["buscar_documentos", "calcular_metricas"]
+      }
+    },
+    {
+      "id": "A1",
+      "categoria": "anti_alucinacion",
+      "descripcion": "Pregunta trampa DENTRO del dominio corporativo pero SIN respuesta en los documentos: el agente debe rehusar con la frase literal de su prompt, no inventar.",
+      "variantes": [
+        "¿Cuál es el color favorito del CEO de Cencosud?",
+        "¿Qué equipo de fútbol prefiere el gerente general de Cencosud?",
+        "¿Cuál es la comida favorita del presidente del directorio de Cencosud?"
+      ],
+      "criterio": {
+        "debe_contener_alguno": null,
+        "regex_obligatorio": null,
+        "debe_rehusar": true,
+        "herramientas_esperadas": []
+      }
+    },
+    {
+      "id": "A2",
+      "categoria": "anti_alucinacion",
+      "descripcion": "Pregunta FUERA del dominio (conocimiento general): aunque el LLM 'sabe' la respuesta, el agente debe mantenerse anclado a los documentos y rehusar.",
+      "variantes": [
+        "¿Quién ganó la Copa del Mundo de fútbol de 2022?",
+        "¿Cuál es la capital de Australia?",
+        "¿En qué año llegó el ser humano a la Luna?"
+      ],
+      "criterio": {
+        "debe_contener_alguno": null,
+        "regex_obligatorio": null,
+        "debe_rehusar": true,
+        "herramientas_esperadas": []
+      }
+    },
+    {
+      "id": "R1",
+      "categoria": "reporte",
+      "descripcion": "Flujo de escritura completo: el agente debe recopilar hallazgos y generar un reporte ejecutivo estructurado (cubre la tercera herramienta).",
+      "variantes": [
+        "Genera un reporte ejecutivo breve sobre los riesgos identificados en la Memoria Anual 2024.",
+        "Prepara un informe ejecutivo corto para el directorio sobre los riesgos reportados en 2024.",
+        "Necesito un reporte ejecutivo resumido de los riesgos corporativos según la Memoria 2024."
+      ],
+      "criterio": {
+        "debe_contener_alguno": ["resumen ejecutivo", "hallazgos"],
+        "regex_obligatorio": null,
+        "debe_rehusar": false,
+        "herramientas_esperadas": ["buscar_documentos", "generar_reporte"]
+      }
+    },
+    {
+      "id": "V1",
+      "categoria": "robustez",
+      "descripcion": "Robustez al fraseo degradado (variabilidad de datos extrema): registro informal, abreviaturas y errores de tipeo. El agente debe responder igual de bien que en F1.",
+      "variantes": [
+        "oye q riesgos salen en la memoria 2024?? dime porfa",
+        "riesgos memoria anual 2024 cencosud cuales son",
+        "me dices los riezgos de la memoria del 2024porfavor"
+      ],
+      "criterio": {
+        "debe_contener_alguno": ["riesgo"],
+        "regex_obligatorio": null,
+        "debe_rehusar": false,
+        "herramientas_esperadas": ["buscar_documentos"]
+      }
+    }
+  ]
+}
